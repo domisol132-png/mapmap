@@ -1,0 +1,289 @@
+import streamlit as st
+import pandas as pd
+import requests 
+import datetime
+import calendar
+import folium # 🌟 지도 그리는 붓
+from streamlit_folium import st_folium # 🌟 그린 지도를 웹에 띄워주는 액자
+
+# 1. 페이지 설정
+st.set_page_config(page_title="합주실 맵스캐너", page_icon="🎸", layout="wide")
+
+# ==========================================
+# 🗂️ 무적의 합주실 데이터베이스 (위도/경도 좌표 추가!)
+# ==========================================
+STUDIO_DB = {
+    "그라운드합주실 본점": [
+        {"name": "그라운드 본점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5587861", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 A1룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588402", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 A2룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588476", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 A3룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588707", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 B1룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588783", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 B2룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588817", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588835", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 D룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588869", "lat": 37.5561, "lon": 126.9234},
+        {"name": "그라운드 본점 E룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588887", "lat": 37.5561, "lon": 126.9234}
+    ],
+    "그라운드합주실 홍대1호점": [
+        {"name": "그라운드 홍대1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651547", "lat": 37.557207, "lon": 126.922592},
+        {"name": "그라운드 홍대1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651549", "lat": 37.557207, "lon": 126.922592},
+        {"name": "그라운드 홍대1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651550", "lat": 37.557207, "lon": 126.922592},
+        {"name": "그라운드 홍대1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651551", "lat": 37.557207, "lon": 126.922592},
+        {"name": "그라운드 홍대1호점 D룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651554", "lat": 37.557207, "lon": 126.922592},
+        {"name": "그라운드 홍대1호점 E룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6646547", "lat": 37.557207, "lon": 126.922592}
+    ],
+    "그라운드합주실 합정1호점": [
+        {"name": "그라운드 합정1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361583", "lat": 37.550460, "lon": 126.919062},
+        {"name": "그라운드 합정1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361594", "lat": 37.550460, "lon": 126.919062},
+        {"name": "그라운드 합정1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361595", "lat": 37.550460, "lon": 126.919062},
+        {"name": "그라운드 합정1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361597", "lat": 37.550460, "lon": 126.919062}
+    ],
+    "그라운드합주실 신촌1호점": [
+        {"name": "그라운드 신촌1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979437", "lat": 37.556237, "lon": 126.940985},
+        {"name": "그라운드 신촌1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979448", "lat": 37.556237, "lon": 126.940985},
+        {"name": "그라운드 신촌1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979471", "lat": 37.556237, "lon": 126.940985},
+        {"name": "그라운드 신촌1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979479", "lat": 37.556237, "lon": 126.940985}
+    ],
+    "제시뮤직 합주실 홍대점": [
+        {"name": "제시뮤직 홍대점 R룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/4013506", "lat": 37.555284, "lon": 126.920221},
+        {"name": "제시뮤직 홍대점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/3702602", "lat": 37.555284, "lon": 126.920221},
+        {"name": "제시뮤직 홍대점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/3702645", "lat": 37.555284, "lon": 126.920221}
+    ],
+    "호랑이합주실": [
+        {"name": "호랑이 1", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5592935", "lat": 37.5575, "lon": 126.9255},
+        {"name": "호랑이 2", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5606830", "lat": 37.5575, "lon": 126.9255},
+        {"name": "호랑이 3", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5606836", "lat": 37.5575, "lon": 126.9255}
+    ]
+}
+
+# ⏱️ 시간 변환 함수
+def convert_to_24h_set(time_string):
+    if not time_string or str(time_string) == 'nan' or time_string == "-": return set()
+    times = [t.strip() for t in time_string.split(',')]
+    result_set = set()
+    for t in times:
+        current_period = "오후" if "오후" in t else "오전"
+        try: 
+            hour_str = t.replace("오전", "").replace("오후", "").replace("시", "").split(":")[0].strip()
+            hour = int(hour_str)
+            if current_period == "오전":
+                result_set.add(0 if hour == 12 else hour)
+            else:
+                result_set.add(12 if hour == 12 else hour + 12)
+        except: continue
+    return result_set
+
+def format_time_text(hour):
+    if hour == 0: return "오전 12시"
+    elif hour < 12: return f"오전 {hour}시"
+    elif hour == 12: return "오후 12시"
+    else: return f"오후 {hour - 12}시"
+
+# ⚡️ 초광속 범용 API 스캐너 (달력 UI 호환 패치)
+@st.cache_data(show_spinner=False)
+def run_api_crawler(target_date_obj, selected_studios): # 변수명 변경!
+    # 🌟 이제 스트림릿 달력에서 고른 '진짜 날짜 객체'가 바로 들어옴
+    year = target_date_obj.year
+    month = target_date_obj.month
+    
+    # 선택한 날짜가 포함된 달의 첫날과 마지막 날을 계산 (다음 달을 골라도 완벽 작동!)
+    last_day = calendar.monthrange(year, month)[1]
+    start_time_str = f"{year}-{month:02d}-01T00:00:00"
+    end_time_str = f"{year}-{month:02d}-{last_day}T23:59:59"
+
+    GRAPHQL_QUERY = """query hourlySchedule($scheduleParams: ScheduleParams) {\n  schedule(input: $scheduleParams) {\n    bizItemSchedule {\n      hourly {\n        unitStartDateTime\n        unitStartTime\n        unitBookingCount\n        unitStock\n        stock\n        bookingCount\n        isUnitSaleDay\n        isUnitBusinessDay\n      }\n    }\n  }\n}"""
+
+    # ... (이 아래 for문부터는 기존 코드와 완전히 동일!) ...
+    final_data = []
+    for studio_name in selected_studios:
+        if studio_name not in STUDIO_DB: continue
+        for room in STUDIO_DB[studio_name]:
+            url = room["url"]
+            try:
+                biz_id = url.split("bizes/")[1].split("/")[0]
+                item_id = url.split("items/")[1].split("?")[0]
+            except: continue
+
+            headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json", "Referer": url}
+            payload = {
+                "operationName": "hourlySchedule",
+                "variables": {
+                    "scheduleParams": {
+                        "businessTypeId": 10, "businessId": biz_id, "bizItemId": item_id,
+                        "startDateTime": start_time_str, "endDateTime": end_time_str,
+                        "fixedTime": True, "includesHolidaySchedules": True
+                    }
+                },
+                "query": GRAPHQL_QUERY
+            }
+
+            try:
+                response = requests.post("https://m.booking.naver.com/graphql", json=payload, headers=headers)
+                # 🌟 여기에 위치(lat, lon) 정보도 같이 저장해 둬야 나중에 지도에 찍을 수 있어!
+                result = {"합주실 이름": room['name'], "상태": "❌ 마감", "예약 가능 시간": "-", "예약링크": url, "lat": room['lat'], "lon": room['lon']}
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    hourly_slots = data.get('data', {}).get('schedule', {}).get('bizItemSchedule', {}).get('hourly', [])
+                    available_times = []
+                    
+                    for slot in hourly_slots:
+                        start_time_str_raw = slot.get('unitStartTime', '')
+                        if not start_time_str_raw: continue
+                        
+                        try:
+                            date_part = start_time_str_raw.split()[0] 
+                            year, month, day = map(int, date_part.split('-'))
+                            slot_date_obj = datetime.date(year, month, day)
+                            
+                            if slot_date_obj != target_date_obj: continue
+                            
+                            stock = int(slot.get('unitStock', slot.get('stock', 0)))
+                            booked = int(slot.get('unitBookingCount', slot.get('bookingCount', 0)))
+                            is_sale = slot.get('isUnitSaleDay', True) and slot.get('isUnitBusinessDay', True)
+                            
+                            if stock > booked and is_sale:
+                                time_part = start_time_str_raw.split()[-1]
+                                hour = int(time_part.split(":")[0])
+                                available_times.append(format_time_text(hour))
+                        except: continue
+                        
+                    if available_times:
+                        available_times = sorted(list(set(available_times)), key=lambda x: int(convert_to_24h_set(x).copy().pop()) if convert_to_24h_set(x) else 0)
+                        result["상태"] = "✅ 예약 가능"
+                        result["예약 가능 시간"] = ", ".join(available_times)
+                
+                final_data.append(result)
+            except: 
+                result["상태"] = "⚠️ 탐색 실패"
+                final_data.append(result)
+            
+    return pd.DataFrame(final_data)
+
+# ==========================================
+# 🎨 웹사이트 메인 화면
+# ==========================================
+st.title("🎸 홍대 합주실 싹쓸이 탐색기 (Map 에디션)")
+st.write("무거운 크롬 대신, 네이버 서버의 뒷문을 다이렉트로 털어옵니다! 🚀")
+
+user_studios = st.multiselect(
+    "🎯 타겟 합주실 선택", 
+    options=list(STUDIO_DB.keys()), 
+    default=["그라운드합주실 본점", "호랑이합주실"]
+)
+st.divider()
+
+col1, col2 = st.columns([1, 2])
+with col1: 
+    # 🌟 달력 위젯으로 교체! (min_value를 오늘로 설정해서 지나간 과거는 선택 불가능하게 막음)
+    user_date = st.date_input(
+        "📅 언제 합주할래?", 
+        value=datetime.date.today(), 
+        min_value=datetime.date.today(),
+        format="YYYY.MM.DD"
+    )
+
+with col2: 
+    time_range = st.slider("⏰ 몇 시부터 몇 시 사이에 합주할래?", 0, 24, (16, 20), 1)
+
+start_time, end_time = time_range
+required_times = set(range(start_time, end_time))
+
+if st.button("🚀 광속 싹쓸이 시작!", key="main_btn"):
+    if not user_studios: 
+        st.warning("⚠️ 합주실을 선택해주세요!")
+        st.stop()
+
+    # 🌟 날짜를 예쁘게 '02월 18일' 형태로 출력
+    display_date = user_date.strftime("%m월 %d일")
+    with st.spinner(f'{display_date} 스케줄 털어오는 중... 밴드맨은 달린다 🏃‍♂️'):
+        # 바뀐 변수(user_date) 그대로 함수에 던지면 끝!
+        raw_df = run_api_crawler(user_date, tuple(user_studios)) 
+        
+    # ... (이 아래 필터링 및 지도 출력 로직은 기존 코드와 완전히 동일!) ...
+    filtered_list = []
+    for _, row in raw_df.iterrows():
+        if row["상태"] == "✅ 예약 가능":
+            available_set = convert_to_24h_set(row["예약 가능 시간"])
+            matching = required_times & available_set
+            if matching:
+                filtered_list.append({
+                    "합주실 이름": row["합주실 이름"], 
+                    "🎸 겹치는 시간": f"{sorted(list(matching))}시", 
+                    "원본 데이터": row["예약 가능 시간"], 
+                    "바로가기": row["예약링크"],
+                    "lat": row["lat"], # 🌟 지도에 찍을 위도
+                    "lon": row["lon"]  # 🌟 지도에 찍을 경도
+                })
+    
+    if filtered_list:
+        st.success("데이터 훔쳐오기 완료! 마루노우치 새디스틱 가자!!")
+        
+        # 🗺️ 🌟 대망의 지도 시각화 부분 🌟 🗺️
+        st.subheader("🗺️ 내 조건에 맞는 합주실 위치 확인하기")
+        
+        # 1. 지도의 중심점 잡기
+        center_lat = filtered_list[0]["lat"]
+        center_lon = filtered_list[0]["lon"]
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=15)
+
+        # 2. 🌟 핵심 패치: 같은 위치(위도, 경도)에 있는 방들을 하나로 묶기!
+        location_groups = {}
+        for room in filtered_list:
+            lat = room["lat"]
+            lon = room["lon"]
+            room_name = room["합주실 이름"]
+            times = room["🎸 겹치는 시간"]
+
+            # STUDIO_DB를 뒤져서 '그라운드합주실 본점' 같은 진짜 지점명 찾기
+            studio_name = "합주실"
+            for s_name, r_list in STUDIO_DB.items():
+                if any(r["name"] == room_name for r in r_list):
+                    studio_name = s_name
+                    break
+
+            coord = (lat, lon)
+            if coord not in location_groups:
+                location_groups[coord] = {
+                    "studio_name": studio_name,
+                    "rooms_html": "" # 여기에 방 목록을 텍스트로 계속 더할 거임
+                }
+            
+            # 방 이름과 시간을 예쁜 리스트 <li> 태그로 착착 쌓기
+            location_groups[coord]["rooms_html"] += f"<li style='margin-bottom: 3px;'><b>{room_name}</b> : {times}</li>"
+
+        # 3. 묶어둔 데이터를 바탕으로 지도에 지점당 딱 '1개의 핀'만 꽂기
+        for coord, data in location_groups.items():
+            studio_name = data["studio_name"]
+
+            # 팝업(말풍선)에 들어갈 깔끔한 HTML 코드
+            popup_html = f"""
+            <div style="min-width: 220px;">
+                <h4 style="margin-bottom: 8px; color: #E91E63;">🎸 <b>{studio_name}</b></h4>
+                <ul style="padding-left: 20px; margin-top: 0; font-size: 13px;">
+                    {data["rooms_html"]}
+                </ul>
+            </div>
+            """
+
+            folium.Marker(
+                [coord[0], coord[1]],
+                popup=folium.Popup(popup_html, max_width=350),
+                tooltip=studio_name, # 마우스 올리면 '그라운드합주실 본점' 등장!
+                icon=folium.Icon(color="red", icon="music", prefix='fa')
+            ).add_to(m)
+
+        # 스트림릿에 지도 출력! (새로고침 방지 옵션 유지)
+        st_folium(m, width=800, height=400, returned_objects=[])
+        st.divider()
+
+        # 기존 표 출력
+        st.subheader("🎉 찾았다! 찢을 방!")
+        # 지도에는 좌표를 썼으니, 표에 보여줄 때는 헷갈리지 않게 좌표 컬럼을 빼고 출력
+        df_display = pd.DataFrame(filtered_list).drop(columns=["lat", "lon"])
+        st.dataframe(df_display, use_container_width=True, column_config={"바로가기": st.column_config.LinkColumn("예약 링크")})
+        st.balloons()
+    else:
+        st.error(f"😭 {start_time}시~{end_time}시 사이에는 비어있는 방이 없어.")
+        with st.expander("전체 검색 결과 보기 (마감 포함)"):
+            st.dataframe(raw_df.drop(columns=["lat", "lon"], errors='ignore'), use_container_width=True)
