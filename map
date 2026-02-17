@@ -161,129 +161,159 @@ def run_api_crawler(target_date_obj, selected_studios): # 변수명 변경!
     return pd.DataFrame(final_data)
 
 # ==========================================
-# 🎨 웹사이트 메인 화면
+# ⏱️ [신규 추가] 연속 시간 판별 알고리즘
 # ==========================================
-st.title("🎸 홍대 합주실 싹쓸이 탐색기 (Map 에디션)")
+def check_consecutive_hours(times_set, min_hours):
+    if not times_set: return False
+    sorted_times = sorted(list(times_set))
+    max_len = 1
+    current_len = 1
+    for i in range(1, len(sorted_times)):
+        if sorted_times[i] == sorted_times[i-1] + 1:
+            current_len += 1
+        else:
+            max_len = max(max_len, current_len)
+            current_len = 1
+    max_len = max(max_len, current_len)
+    return max_len >= min_hours
+# ==========================================
+# ⏱️ [신규 추가] 연속된 시간을 "OO시~OO시"로 예쁘게 묶어주는 함수
+# ==========================================
+def format_time_ranges(times_set):
+    if not times_set: return "-"
+    sorted_times = sorted(list(times_set))
+    
+    ranges = []
+    start = sorted_times[0]
+    prev = sorted_times[0]
+    
+    for t in sorted_times[1:]:
+        if t == prev + 1: # 시간이 연속으로 이어지면
+            prev = t      # 꼬리를 잡고 계속 늘림
+        else:             # 시간이 끊기면
+            ranges.append(f"{start}시~{prev+1}시") # 이전 블록을 저장
+            start = t
+            prev = t
+            
+    # 마지막 남은 블록 저장 (끝나는 시간은 +1시간 해줌)
+    ranges.append(f"{start}시~{prev+1}시")
+    return ", ".join(ranges)
+# ==========================================
+# 🎨 메인 대시보드 UI (화면 분할 & 아코디언 패치)
+# ==========================================
+st.title("🎸 [앱 이름] : 홍대 합주실 스캐너")
 st.write("무거운 크롬 대신, 네이버 서버의 뒷문을 다이렉트로 털어옵니다! 🚀")
 
-user_studios = st.multiselect(
-    "🎯 타겟 합주실 선택", 
-    options=list(STUDIO_DB.keys()), 
-    default=["그라운드합주실 본점", "호랑이합주실"]
-)
-st.divider()
+# 🌟 1. 팝업 대신 화면을 가리지 않는 아코디언(Expander) 메뉴!
+with st.expander("⚙️ 예약 조건 설정 및 검색 (클릭하여 열기/닫기)", expanded=True):
+    col_input1, col_input2 = st.columns(2)
+    
+    with col_input1:
+        # 🌟 마스터 스위치
+        search_all = st.checkbox("🔥 홍대 전체 합주실 싹쓸이", value=True, help="체크를 해제하면 원하는 합주실만 고를 수 있습니다.")
+        
+        st.caption("🎸 수집된 합주실 DB 목록:")
+        user_studios = []
+        
+        # 🌟 창업자의 킬러 피처: DB 전체 전시 
+        for studio_name in STUDIO_DB.keys():
+            # search_all이 켜져있으면 -> 체크박스를 강제로 켜고, 회색으로 얼려둠(disabled)
+            # search_all이 꺼져있으면 -> 유저가 마음대로 껐다 켰다 조작 가능
+            is_checked = st.checkbox(studio_name, value=True, disabled=search_all)
+            
+            if search_all or is_checked:
+                user_studios.append(studio_name)
+                
+    with col_input2:
+        user_date = st.date_input("📅 날짜", value=datetime.date.today(), min_value=datetime.date.today(), format="YYYY.MM.DD")
+        time_range = st.slider("⏰ 시간대", 0, 24, (16, 22), 1)
+        min_hours = st.number_input("⏳ 최소 연속 시간", min_value=1, max_value=6, value=2)
+        
+    start_time, end_time = time_range
+    required_times = set(range(start_time, end_time))
+    
+    st.divider()
+    search_clicked = st.button("🚀 광속 싹쓸이 시작!", key="main_btn", use_container_width=True)
 
-col1, col2 = st.columns([1, 2])
-with col1: 
-    # 🌟 달력 위젯으로 교체! (min_value를 오늘로 설정해서 지나간 과거는 선택 불가능하게 막음)
-    user_date = st.date_input(
-        "📅 언제 합주할래?", 
-        value=datetime.date.today(), 
-        min_value=datetime.date.today(),
-        format="YYYY.MM.DD"
-    )
+# 🌟 2. 화면을 6:4 비율로 분할 (좌: 지도, 우: 결과표)
+col_map, col_table = st.columns([6, 4])
 
-with col2: 
-    time_range = st.slider("⏰ 몇 시부터 몇 시 사이에 합주할래?", 0, 24, (16, 20), 1)
+# 📺 3. 메인 화면 출력 로직
+if not search_clicked:
+    # --- 검색 전 초기 화면 ---
+    with col_map:
+        st.subheader("🗺️ 홍대 합주실 맵")
+        m_default = folium.Map(location=[37.5561, 126.9234], zoom_start=15)
+        for studio_name, rooms in STUDIO_DB.items():
+            if not rooms: continue
+            lat, lon, first_url = rooms[0]["lat"], rooms[0]["lon"], rooms[0]["url"]
+            popup_html = f"""<div style="text-align: center;"><h4><b>{studio_name}</b></h4><a href="{first_url}" target="_blank" style="padding: 5px; background-color: #03C75A; color: white; text-decoration: none; border-radius: 5px;">네이버 예약 바로가기</a></div>"""
+            folium.Marker([lat, lon], popup=folium.Popup(popup_html, max_width=300), tooltip=studio_name, icon=folium.Icon(color="gray", icon="music", prefix='fa')).add_to(m_default)
+        st_folium(m_default, use_container_width=True, height=500, returned_objects=[])
 
-start_time, end_time = time_range
-required_times = set(range(start_time, end_time))
+    with col_table:
+        st.subheader("📋 검색 결과")
+        st.info("👆 위에서 조건을 설정하고 스캔을 시작하세요!\n\n(지도에 있는 회색 핀을 누르면 바로 예약도 가능합니다.)")
 
-if st.button("🚀 광속 싹쓸이 시작!", key="main_btn"):
+else:
+    # --- 검색 실행 화면 ---
     if not user_studios: 
-        st.warning("⚠️ 합주실을 선택해주세요!")
+        st.warning("⚠️ 합주실을 최소 1개 이상 선택해주세요!")
         st.stop()
 
-    # 🌟 날짜를 예쁘게 '02월 18일' 형태로 출력
     display_date = user_date.strftime("%m월 %d일")
-    with st.spinner(f'{display_date} 스케줄 털어오는 중... 밴드맨은 달린다 🏃‍♂️'):
-        # 바뀐 변수(user_date) 그대로 함수에 던지면 끝!
+    with st.spinner(f'{display_date} 스케줄 털어오는 중...'):
         raw_df = run_api_crawler(user_date, tuple(user_studios)) 
-        
-    # ... (이 아래 필터링 및 지도 출력 로직은 기존 코드와 완전히 동일!) ...
+    
     filtered_list = []
     for _, row in raw_df.iterrows():
         if row["상태"] == "✅ 예약 가능":
             available_set = convert_to_24h_set(row["예약 가능 시간"])
             matching = required_times & available_set
-            if matching:
+            # (기존 코드 중 filtered_list.append 부분을 이렇게 수정!)
+            if matching and check_consecutive_hours(matching, min_hours):
                 filtered_list.append({
-                    "합주실 이름": row["합주실 이름"], 
-                    "🎸 겹치는 시간": f"{sorted(list(matching))}시", 
-                    "원본 데이터": row["예약 가능 시간"], 
-                    "바로가기": row["예약링크"],
-                    "lat": row["lat"], # 🌟 지도에 찍을 위도
-                    "lon": row["lon"]  # 🌟 지도에 찍을 경도
-                })
+                  "합주실 이름": row["합주실 이름"], 
+                 # 🌟 여기를 방금 만든 함수로 교체!
+                 "🎸 예약 가능": format_time_ranges(matching), 
+                 "예약링크": row["예약링크"], 
+                 "lat": row["lat"], 
+                 "lon": row["lon"], 
+                 "studio_name": row["합주실 이름"].split()[0]
+        })
     
     if filtered_list:
-        st.success("데이터 훔쳐오기 완료! 마루노우치 새디스틱 가자!!")
+        st.success(f"🎉 {display_date}, 최소 {min_hours}시간 연속 가능한 방을 찾았습니다!")
         
-        # 🗺️ 🌟 대망의 지도 시각화 부분 🌟 🗺️
-        st.subheader("🗺️ 내 조건에 맞는 합주실 위치 확인하기")
-        
-        # 1. 지도의 중심점 잡기
-        center_lat = filtered_list[0]["lat"]
-        center_lon = filtered_list[0]["lon"]
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=15)
+        with col_map:
+            st.subheader("🗺️ 예약 가능한 방 위치")
+            m_filtered = folium.Map(location=[filtered_list[0]["lat"], filtered_list[0]["lon"]], zoom_start=15)
+            location_groups = {}
+            for room in filtered_list:
+                coord = (room["lat"], room["lon"])
+                if coord not in location_groups: location_groups[coord] = {"studio_name": "합주실", "rooms_html": ""}
+                for s_name, r_list in STUDIO_DB.items():
+                    if any(r["name"] == room["합주실 이름"] for r in r_list):
+                        location_groups[coord]["studio_name"] = s_name
+                        break
+                location_groups[coord]["rooms_html"] += f"<li><b>{room['합주실 이름']}</b> ({room['🎸 예약 가능']}) <a href='{room['예약링크']}' target='_blank'>[예약]</a></li>"
 
-        # 2. 🌟 핵심 패치: 같은 위치(위도, 경도)에 있는 방들을 하나로 묶기!
-        location_groups = {}
-        for room in filtered_list:
-            lat = room["lat"]
-            lon = room["lon"]
-            room_name = room["합주실 이름"]
-            times = room["🎸 겹치는 시간"]
+            for coord, data in location_groups.items():
+                popup_html = f"""<div><h4 style="color: #E91E63;"><b>{data['studio_name']}</b></h4><ul>{data['rooms_html']}</ul></div>"""
+                folium.Marker([coord[0], coord[1]], popup=folium.Popup(popup_html, max_width=350), tooltip=data['studio_name'], icon=folium.Icon(color="red", icon="music", prefix='fa')).add_to(m_filtered)
+            st_folium(m_filtered, use_container_width=True, height=500, returned_objects=[])
 
-            # STUDIO_DB를 뒤져서 '그라운드합주실 본점' 같은 진짜 지점명 찾기
-            studio_name = "합주실"
-            for s_name, r_list in STUDIO_DB.items():
-                if any(r["name"] == room_name for r in r_list):
-                    studio_name = s_name
-                    break
-
-            coord = (lat, lon)
-            if coord not in location_groups:
-                location_groups[coord] = {
-                    "studio_name": studio_name,
-                    "rooms_html": "" # 여기에 방 목록을 텍스트로 계속 더할 거임
-                }
+        with col_table:
+            st.subheader("📋 찢을 방 리스트")
+            df_display = pd.DataFrame(filtered_list).drop(columns=["lat", "lon", "studio_name"])
             
-            # 방 이름과 시간을 예쁜 리스트 <li> 태그로 착착 쌓기
-            location_groups[coord]["rooms_html"] += f"<li style='margin-bottom: 3px;'><b>{room_name}</b> : {times}</li>"
-
-        # 3. 묶어둔 데이터를 바탕으로 지도에 지점당 딱 '1개의 핀'만 꽂기
-        for coord, data in location_groups.items():
-            studio_name = data["studio_name"]
-
-            # 팝업(말풍선)에 들어갈 깔끔한 HTML 코드
-            popup_html = f"""
-            <div style="min-width: 220px;">
-                <h4 style="margin-bottom: 8px; color: #E91E63;">🎸 <b>{studio_name}</b></h4>
-                <ul style="padding-left: 20px; margin-top: 0; font-size: 13px;">
-                    {data["rooms_html"]}
-                </ul>
-            </div>
-            """
-
-            folium.Marker(
-                [coord[0], coord[1]],
-                popup=folium.Popup(popup_html, max_width=350),
-                tooltip=studio_name, # 마우스 올리면 '그라운드합주실 본점' 등장!
-                icon=folium.Icon(color="red", icon="music", prefix='fa')
-            ).add_to(m)
-
-        # 스트림릿에 지도 출력! (새로고침 방지 옵션 유지)
-        st_folium(m, width=800, height=400, returned_objects=[])
-        st.divider()
-
-        # 기존 표 출력
-        st.subheader("🎉 찾았다! 찢을 방!")
-        # 지도에는 좌표를 썼으니, 표에 보여줄 때는 헷갈리지 않게 좌표 컬럼을 빼고 출력
-        df_display = pd.DataFrame(filtered_list).drop(columns=["lat", "lon"])
-        st.dataframe(df_display, use_container_width=True, column_config={"바로가기": st.column_config.LinkColumn("예약 링크")})
-        st.balloons()
+            # 🌟 킬러 디테일: 엄청 긴 URL을 깔끔한 '🔗 예약하기' 버튼 텍스트로 변환!
+            st.dataframe(
+                df_display, 
+                use_container_width=True, 
+                column_config={
+                    "예약링크": st.column_config.LinkColumn("예약 링크", display_text="🔗 예약하기")
+                }
+            )
     else:
-        st.error(f"😭 {start_time}시~{end_time}시 사이에는 비어있는 방이 없어.")
-        with st.expander("전체 검색 결과 보기 (마감 포함)"):
-            st.dataframe(raw_df.drop(columns=["lat", "lon"], errors='ignore'), use_container_width=True)
+        st.error(f"😭 지정한 시간 내에 연속 {min_hours}시간 이상 비어있는 방이 없습니다.")
