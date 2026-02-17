@@ -43,6 +43,17 @@ STUDIO_DB = {
         {"name": "하모닉스 합주실 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/1064404/items/5596983", "lat": 37.557613, "lon": 126.921957},
         {"name": "하모닉스 합주실 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/1064404/items/5596988", "lat": 37.557613, "lon": 126.921957}
     ],
+    "하모닉스 합주실 2호점": [
+        {"name": "하모닉스 2호점 RED ROOM", "url": "https://m.booking.naver.com/booking/10/bizes/1278292/items/6338498", "lat": 37.557292, "lon": 126.922508},
+        {"name": "하모닉스 2호점 BLUE ROOM", "url": "https://m.booking.naver.com/booking/10/bizes/1278292/items/6338505", "lat": 37.557292, "lon": 126.922508}
+    ],
+    "사운드시티 합주실 홍대역점": [
+        {"name": "사운드시티 홍대 Room 1", "url": "https://m.booking.naver.com/booking/10/bizes/1410283/items/6747150", "lat": 37.556232, "lon": 126.923429},
+        {"name": "사운드시티 홍대 Room 2", "url": "https://m.booking.naver.com/booking/10/bizes/1410283/items/6747154", "lat": 37.556232, "lon": 126.923429},
+        {"name": "사운드시티 홍대 Room 3", "url": "https://m.booking.naver.com/booking/10/bizes/1410283/items/6747157", "lat": 37.556232, "lon": 126.923429},
+        {"name": "사운드시티 홍대 Room 4", "url": "https://m.booking.naver.com/booking/10/bizes/1410283/items/6747158", "lat": 37.556232, "lon": 126.923429},
+        {"name": "사운드시티 홍대 Room 5", "url": "https://m.booking.naver.com/booking/10/bizes/1410283/items/6747167", "lat": 37.556232, "lon": 126.923429}
+    ],
     "Chama Studio": [
         {"name": "Chama Studio Room BLACK", "url": "https://m.booking.naver.com/booking/10/bizes/114414/items/2663395", "lat": 37.553839, "lon": 126.912493},
         {"name": "Chama Studio Room BURGUNDY", "url": "https://m.booking.naver.com/booking/10/bizes/114414/items/2664242", "lat": 37.553839, "lon": 126.912493}
