@@ -5,56 +5,11 @@ import datetime
 import calendar
 import folium # 🌟 지도 그리는 붓
 from streamlit_folium import st_folium # 🌟 그린 지도를 웹에 띄워주는 액자
+from database import STUDIO_DB
 
 # 1. 페이지 설정
 st.set_page_config(page_title="합주실 맵스캐너", page_icon="🎸", layout="wide")
 
-# ==========================================
-# 🗂️ 무적의 합주실 데이터베이스 (위도/경도 좌표 추가!)
-# ==========================================
-STUDIO_DB = {
-    "그라운드합주실 본점": [
-        {"name": "그라운드 본점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5587861", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 A1룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588402", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 A2룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588476", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 A3룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588707", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 B1룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588783", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 B2룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588817", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588835", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 D룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588869", "lat": 37.5561, "lon": 126.9234},
-        {"name": "그라운드 본점 E룸", "url": "https://m.booking.naver.com/booking/10/bizes/1061592/items/5588887", "lat": 37.5561, "lon": 126.9234}
-    ],
-    "그라운드합주실 홍대1호점": [
-        {"name": "그라운드 홍대1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651547", "lat": 37.557207, "lon": 126.922592},
-        {"name": "그라운드 홍대1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651549", "lat": 37.557207, "lon": 126.922592},
-        {"name": "그라운드 홍대1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651550", "lat": 37.557207, "lon": 126.922592},
-        {"name": "그라운드 홍대1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651551", "lat": 37.557207, "lon": 126.922592},
-        {"name": "그라운드 홍대1호점 D룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6651554", "lat": 37.557207, "lon": 126.922592},
-        {"name": "그라운드 홍대1호점 E룸", "url": "https://m.booking.naver.com/booking/10/bizes/329314/items/6646547", "lat": 37.557207, "lon": 126.922592}
-    ],
-    "그라운드합주실 합정1호점": [
-        {"name": "그라운드 합정1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361583", "lat": 37.550460, "lon": 126.919062},
-        {"name": "그라운드 합정1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361594", "lat": 37.550460, "lon": 126.919062},
-        {"name": "그라운드 합정1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361595", "lat": 37.550460, "lon": 126.919062},
-        {"name": "그라운드 합정1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/331813/items/3361597", "lat": 37.550460, "lon": 126.919062}
-    ],
-    "그라운드합주실 신촌1호점": [
-        {"name": "그라운드 신촌1호점 S룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979437", "lat": 37.556237, "lon": 126.940985},
-        {"name": "그라운드 신촌1호점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979448", "lat": 37.556237, "lon": 126.940985},
-        {"name": "그라운드 신촌1호점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979471", "lat": 37.556237, "lon": 126.940985},
-        {"name": "그라운드 신촌1호점 C룸", "url": "https://m.booking.naver.com/booking/10/bizes/1182602/items/5979479", "lat": 37.556237, "lon": 126.940985}
-    ],
-    "제시뮤직 합주실 홍대점": [
-        {"name": "제시뮤직 홍대점 R룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/4013506", "lat": 37.555284, "lon": 126.920221},
-        {"name": "제시뮤직 홍대점 A룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/3702602", "lat": 37.555284, "lon": 126.920221},
-        {"name": "제시뮤직 홍대점 B룸", "url": "https://m.booking.naver.com/booking/10/bizes/446860/items/3702645", "lat": 37.555284, "lon": 126.920221}
-    ],
-    "호랑이합주실": [
-        {"name": "호랑이 1", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5592935", "lat": 37.5575, "lon": 126.9255},
-        {"name": "호랑이 2", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5606830", "lat": 37.5575, "lon": 126.9255},
-        {"name": "호랑이 3", "url": "https://m.booking.naver.com/booking/10/bizes/1062791/items/5606836", "lat": 37.5575, "lon": 126.9255}
-    ]
-}
 
 # ⏱️ 시간 변환 함수
 def convert_to_24h_set(time_string):
@@ -201,8 +156,8 @@ def format_time_ranges(times_set):
 # ==========================================
 # 🎨 메인 대시보드 UI (화면 분할 & 아코디언 패치)
 # ==========================================
-st.title("🎸 [앱 이름] : 홍대 합주실 스캐너")
-st.write("무거운 크롬 대신, 네이버 서버의 뒷문을 다이렉트로 털어옵니다! 🚀")
+st.title("🎸 [잼투게더] : 서울 합주실 스캐너")
+st.write("1초만에 합주실 예약하기 🚀")
 
 # 🌟 1. 팝업 대신 화면을 가리지 않는 아코디언(Expander) 메뉴!
 with st.expander("⚙️ 예약 조건 설정 및 검색 (클릭하여 열기/닫기)", expanded=True):
@@ -210,9 +165,9 @@ with st.expander("⚙️ 예약 조건 설정 및 검색 (클릭하여 열기/�
     
     with col_input1:
         # 🌟 마스터 스위치
-        search_all = st.checkbox("🔥 홍대 전체 합주실 싹쓸이", value=True, help="체크를 해제하면 원하는 합주실만 고를 수 있습니다.")
+        search_all = st.checkbox("🔥 전체 합주실 모두 선택", value=True, help="체크를 해제하면 원하는 합주실만 고를 수 있습니다.")
         
-        st.caption("🎸 수집된 합주실 DB 목록:")
+        st.caption("🎸 합주실 목록:")
         user_studios = []
         
         # 🌟 창업자의 킬러 피처: DB 전체 전시 
@@ -233,27 +188,26 @@ with st.expander("⚙️ 예약 조건 설정 및 검색 (클릭하여 열기/�
     required_times = set(range(start_time, end_time))
     
     st.divider()
-    search_clicked = st.button("🚀 광속 싹쓸이 시작!", key="main_btn", use_container_width=True)
+    search_clicked = st.button("🚀 조건에 맞는 합주실 검색", key="main_btn", use_container_width=True)
 
-# 🌟 2. 화면을 6:4 비율로 분할 (좌: 지도, 우: 결과표)
-col_map, col_table = st.columns([6, 4])
+
+
+# 🌟 (이 부분 삭제: col_map, col_table = st.columns([6, 4]))
 
 # 📺 3. 메인 화면 출력 로직
 if not search_clicked:
     # --- 검색 전 초기 화면 ---
-    with col_map:
-        st.subheader("🗺️ 홍대 합주실 맵")
-        m_default = folium.Map(location=[37.5561, 126.9234], zoom_start=15)
-        for studio_name, rooms in STUDIO_DB.items():
-            if not rooms: continue
-            lat, lon, first_url = rooms[0]["lat"], rooms[0]["lon"], rooms[0]["url"]
-            popup_html = f"""<div style="text-align: center;"><h4><b>{studio_name}</b></h4><a href="{first_url}" target="_blank" style="padding: 5px; background-color: #03C75A; color: white; text-decoration: none; border-radius: 5px;">네이버 예약 바로가기</a></div>"""
-            folium.Marker([lat, lon], popup=folium.Popup(popup_html, max_width=300), tooltip=studio_name, icon=folium.Icon(color="gray", icon="music", prefix='fa')).add_to(m_default)
-        st_folium(m_default, use_container_width=True, height=500, returned_objects=[])
-
-    with col_table:
-        st.subheader("📋 검색 결과")
-        st.info("👆 위에서 조건을 설정하고 스캔을 시작하세요!\n\n(지도에 있는 회색 핀을 누르면 바로 예약도 가능합니다.)")
+    st.subheader("🗺️ 홍대 합주실 맵")
+    st.info("👆 위에서 조건을 설정하고 스캔을 시작하세요! (지도 핀을 누르면 예약 가능합니다)")
+    
+    # 모바일을 위해 지도 높이를 400으로 살짝 줄임 (여백 확보)
+    m_default = folium.Map(location=[37.5561, 126.9234], zoom_start=15)
+    for studio_name, rooms in STUDIO_DB.items():
+        if not rooms: continue
+        lat, lon, first_url = rooms[0]["lat"], rooms[0]["lon"], rooms[0]["url"]
+        popup_html = f"""<div style="text-align: center;"><h4><b>{studio_name}</b></h4><a href="{first_url}" target="_blank" style="padding: 5px; background-color: #03C75A; color: white; text-decoration: none; border-radius: 5px;">네이버 예약 바로가기</a></div>"""
+        folium.Marker([lat, lon], popup=folium.Popup(popup_html, max_width=300), tooltip=studio_name, icon=folium.Icon(color="gray", icon="music", prefix='fa')).add_to(m_default)
+    st_folium(m_default, use_container_width=True, height=400, returned_objects=[])
 
 else:
     # --- 검색 실행 화면 ---
@@ -270,23 +224,34 @@ else:
         if row["상태"] == "✅ 예약 가능":
             available_set = convert_to_24h_set(row["예약 가능 시간"])
             matching = required_times & available_set
-            # (기존 코드 중 filtered_list.append 부분을 이렇게 수정!)
+            
             if matching and check_consecutive_hours(matching, min_hours):
                 filtered_list.append({
                   "합주실 이름": row["합주실 이름"], 
-                 # 🌟 여기를 방금 만든 함수로 교체!
-                 "🎸 예약 가능": format_time_ranges(matching), 
-                 "예약링크": row["예약링크"], 
-                 "lat": row["lat"], 
-                 "lon": row["lon"], 
-                 "studio_name": row["합주실 이름"].split()[0]
-        })
+                  "🎸 예약 가능": format_time_ranges(matching), 
+                  "예약링크": row["예약링크"], 
+                  "lat": row["lat"], 
+                  "lon": row["lon"], 
+                  "studio_name": row["합주실 이름"].split()[0]
+                })
     
     if filtered_list:
         st.success(f"🎉 {display_date}, 최소 {min_hours}시간 연속 가능한 방을 찾았습니다!")
         
-        with col_map:
-            st.subheader("🗺️ 예약 가능한 방 위치")
+        # 🌟 창업자의 모바일 UX 해결책: 탭(Tabs) UI 도입!
+        tab_list, tab_map = st.tabs(["📋 예약 가능한 방 리스트", "🗺️ 지도에서 위치 보기"])
+        
+        # 첫 번째 탭: 리스트 (스크롤 막힘없이 바로 결과 확인!)
+        with tab_list:
+            df_display = pd.DataFrame(filtered_list).drop(columns=["lat", "lon", "studio_name"])
+            st.dataframe(
+                df_display, 
+                use_container_width=True, 
+                column_config={"예약링크": st.column_config.LinkColumn("예약 링크", display_text="🔗 예약하기")}
+            )
+
+        # 두 번째 탭: 지도 (위치 궁금한 사람만 탭해서 확인)
+        with tab_map:
             m_filtered = folium.Map(location=[filtered_list[0]["lat"], filtered_list[0]["lon"]], zoom_start=15)
             location_groups = {}
             for room in filtered_list:
@@ -301,19 +266,7 @@ else:
             for coord, data in location_groups.items():
                 popup_html = f"""<div><h4 style="color: #E91E63;"><b>{data['studio_name']}</b></h4><ul>{data['rooms_html']}</ul></div>"""
                 folium.Marker([coord[0], coord[1]], popup=folium.Popup(popup_html, max_width=350), tooltip=data['studio_name'], icon=folium.Icon(color="red", icon="music", prefix='fa')).add_to(m_filtered)
-            st_folium(m_filtered, use_container_width=True, height=500, returned_objects=[])
+            st_folium(m_filtered, use_container_width=True, height=400, returned_objects=[])
 
-        with col_table:
-            st.subheader("📋 찢을 방 리스트")
-            df_display = pd.DataFrame(filtered_list).drop(columns=["lat", "lon", "studio_name"])
-            
-            # 🌟 킬러 디테일: 엄청 긴 URL을 깔끔한 '🔗 예약하기' 버튼 텍스트로 변환!
-            st.dataframe(
-                df_display, 
-                use_container_width=True, 
-                column_config={
-                    "예약링크": st.column_config.LinkColumn("예약 링크", display_text="🔗 예약하기")
-                }
-            )
     else:
         st.error(f"😭 지정한 시간 내에 연속 {min_hours}시간 이상 비어있는 방이 없습니다.")
